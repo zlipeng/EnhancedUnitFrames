@@ -21,3 +21,5 @@ Thumbs.db
 
 # Package files
 *.zip
+
+*.local.json
