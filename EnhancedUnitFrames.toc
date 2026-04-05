@@ -1,0 +1,49 @@
+## Interface: 120000
+## Title: Enhanced Unit Frames
+## Title-zhCN: 增强单位框体
+## Title-zhTW: 增強單位框架
+## Notes: Enhances the default Player and Target unit frames with class colors, scaling, textures, and text customization. Compatible with WoW 12.0 (Midnight).
+## Notes-zhCN: 增强默认的玩家和目标单位框体，支持职业染色、缩放、材质和文字自定义。兼容魔兽世界 12.0（至暗之夜）。
+## Notes-zhTW: 增強預設的玩家和目標單位框架，支援職業染色、缩放、材質和文字自訂。兼容魔獸世界 12.0（至暗之夜）。
+## Author: EnhancedUnitFrames Team
+## Version: 1.0.0
+## SavedVariables: EnhancedUnitFramesDBGlobal
+## SavedVariablesPerCharacter: EnhancedUnitFramesDB
+## OptionalDeps: LibSharedMedia-3.0
+## IconTexture: Interface\Icons\INV_Misc_Gear_01
+
+# Locales (load first for localization support)
+Locales\enUS.lua
+Locales\zhCN.lua
+Locales\zhTW.lua
+Locales\Locales.lua
+
+# Core
+Core\Utils.lua
+Core\SecretSafe.lua
+Core\Database.lua
+Core\Core.lua
+
+# Modules
+Modules\ClassColors.lua
+Modules\FrameScale.lua
+Modules\Textures.lua
+Modules\TextSettings.lua
+
+# Integration
+Integration\EditMode.lua
+Integration\BlizzardHooks.lua
+
+# GUI Widgets
+GUI\Widgets\ColorPicker.lua
+GUI\Widgets\TexturePreview.lua
+
+# GUI Panes
+GUI\Panes\ClassColorsPanel.lua
+GUI\Panes\FrameScalePanel.lua
+GUI\Panes\TexturesPanel.lua
+GUI\Panes\TextSettingsPanel.lua
+GUI\Panes\AdvancedPanel.lua
+
+# GUI Main
+GUI\OptionsPanel.lua

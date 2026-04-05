@@ -1,0 +1,23 @@
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Editor files
+*.swp
+*.swo
+*~
+*.bak
+
+# Development files (keep in repo but exclude from releases)
+# These are tracked for development but can be excluded from distribution
+
+# Lua bytecode
+*.luac
+
+# Package files
+*.zip
