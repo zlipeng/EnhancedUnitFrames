@@ -165,6 +165,34 @@ L["SLASH_RESET"] = "/euf reset - 重置所有设置"
 L["SLASH_SCALE"] = "/euf scale <框体> <值> - 设置框体缩放 (0.5-2.0)"
 L["SLASH_COLOR"] = "/euf color - 切换职业染色"
 L["SLASH_CONFIG"] = "/euf config - 打开设置面板"
+L["SLASH_MINIMAP"] = "/euf minimap [show|hide|reset] - 小地图按钮控制"
+
+-------------------------------------------------------------------------------
+-- Minimap Button
+-------------------------------------------------------------------------------
+
+L["MINIMAP_BUTTON_TOOLTIP_TITLE"] = "增强单位框体"
+L["MINIMAP_BUTTON_TOOLTIP_LEFT"] = "左键：打开设置"
+L["MINIMAP_BUTTON_TOOLTIP_RIGHT"] = "右键：快捷菜单"
+L["MINIMAP_BUTTON_TOOLTIP_DRAG"] = "拖拽：移动按钮位置"
+L["MINIMAP_BUTTON_SHOW"] = "显示小地图按钮"
+L["MINIMAP_BUTTON_SHOW_DESC"] = "在小地图旁显示快捷按钮"
+L["MINIMAP_BUTTON_LOCK"] = "锁定按钮位置"
+L["MINIMAP_BUTTON_LOCK_DESC"] = "锁定小地图按钮位置，禁止拖拽"
+L["MINIMAP_BUTTON_RESET"] = "重置按钮位置"
+L["MINIMAP_BUTTON_HIDDEN"] = "小地图按钮已隐藏，使用 /euf minimap show 重新显示"
+L["MINIMAP_BUTTON_SHOWN"] = "小地图按钮已显示"
+L["MINIMAP_BUTTON_RESET_POS"] = "小地图按钮位置已重置"
+
+-------------------------------------------------------------------------------
+-- Context Menu
+-------------------------------------------------------------------------------
+
+L["MENU_OPEN_SETTINGS"] = "打开设置"
+L["MENU_CLASS_COLORS"] = "职业染色"
+L["MENU_LOCK_BUTTON"] = "锁定按钮位置"
+L["MENU_HIDE_BUTTON"] = "隐藏按钮"
+L["MENU_RESET_CONFIG"] = "重置配置"
 
 -------------------------------------------------------------------------------
 -- Frame Names

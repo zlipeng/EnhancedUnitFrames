@@ -46,4 +46,5 @@ GUI\Panes\TextSettingsPanel.lua
 GUI\Panes\AdvancedPanel.lua
 
 # GUI Main
+GUI\MinimapButton.lua
 GUI\OptionsPanel.lua

@@ -40,6 +40,9 @@ function OptionsPanel:CreateMainCategory()
 
     self.category = category
 
+    -- 设置分类 ID（用于 Settings.OpenToCategory）
+    category.ID = "Enhanced Unit Frames"
+
     -- 通用设置
     self:CreateGeneralSettings(category)
 
@@ -54,6 +57,9 @@ function OptionsPanel:CreateMainCategory()
 
     -- 文字设置
     self:CreateTextSettings(category)
+
+    -- 小地图按钮设置
+    self:CreateMinimapSettings(category)
 
     -- 高级设置
     self:CreateAdvancedSettings(category)
@@ -389,6 +395,75 @@ function OptionsPanel:CreateTextSettings(category)
         EUF.Database:Set(format, "text", "formats", "target", "health")
         if EUF.TextSettings and EUF.TextSettings.initialized then
             EUF.TextSettings:SetHealthTextFormat("target", format)
+        end
+    end)
+
+    Settings.AddSpacer(category)
+end
+
+-------------------------------------------------------------------------------
+-- 小地图按钮设置
+-------------------------------------------------------------------------------
+
+function OptionsPanel:CreateMinimapSettings(category)
+    -- 分隔标题
+    Settings.RegisterSetting(category, "小地图按钮", function()
+        return "|cFFFFFFFF小地图按钮设置|r"
+    end)
+
+    -- 创建本地存储表
+    self.minimapSettings = self.minimapSettings or {}
+
+    -- 显示小地图按钮
+    local showButton = not EUF.Database:Get("minimap", "hide")
+    self.minimapSettings.showMinimapButton = showButton
+
+    local showSetting = Settings.RegisterAddOnSetting(
+        category,
+        "显示小地图按钮",
+        "showMinimapButton",
+        self.minimapSettings,
+        Settings.GetValueTypeBoolean(),
+        showButton
+    )
+    Settings.CreateCheckBox(category, showSetting, "在小地图旁显示快捷按钮")
+
+    Settings.SetOnValueChangedCallback("showMinimapButton", function()
+        local value = self.minimapSettings.showMinimapButton
+        EUF.Database:Set(not value, "minimap", "hide")
+        if EUF.MinimapButton then
+            EUF.MinimapButton:Refresh()
+        end
+    end)
+
+    -- 锁定按钮位置
+    local locked = EUF.Database:Get("minimap", "locked")
+    self.minimapSettings.lockMinimapButton = locked
+
+    local lockSetting = Settings.RegisterAddOnSetting(
+        category,
+        "锁定按钮位置",
+        "lockMinimapButton",
+        self.minimapSettings,
+        Settings.GetValueTypeBoolean(),
+        locked
+    )
+    Settings.CreateCheckBox(category, lockSetting, "锁定小地图按钮位置，禁止拖拽")
+
+    Settings.SetOnValueChangedCallback("lockMinimapButton", function()
+        local value = self.minimapSettings.lockMinimapButton
+        EUF.Database:Set(value, "minimap", "locked")
+    end)
+
+    -- 重置位置按钮
+    local resetPosSetting = Settings.RegisterSetting(category, "重置按钮位置", function()
+        return "|cFFFFFFFF点击重置小地图按钮位置|r"
+    end)
+
+    Settings.CreateButton(category, resetPosSetting, "重置位置", function()
+        if EUF.MinimapButton then
+            EUF.MinimapButton:ResetPosition()
+            EUF:Print("小地图按钮位置已重置")
         end
     end)
 

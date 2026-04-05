@@ -147,7 +147,65 @@ This document provides a comprehensive testing checklist for EnhancedUnitFrames 
 
 ---
 
-## 7. Settings Panel
+## 7. Settings Panel Integration
+
+### 7.1 Interface Options Display
+- [ ] Plugin appears in ESC → Options → AddOns left panel list
+- [ ] Clicking "Enhanced Unit Frames" shows settings on right panel
+- [ ] All settings sections display correctly
+- [ ] No Lua errors when opening settings
+
+### 7.2 Opening Methods
+- [ ] `/euf config` opens settings panel
+- [ ] `/euf` opens settings panel
+- [ ] Settings panel opens from minimap button
+
+---
+
+## 8. Minimap Button
+
+### 8.1 Display
+- [ ] Button appears near minimap on first load
+- [ ] Button icon displays correctly
+- [ ] Button border displays correctly
+- [ ] Hover highlight works
+
+### 8.2 Tooltip
+- [ ] Tooltip appears on hover
+- [ ] Tooltip shows correct instructions
+- [ ] Tooltip hides on mouse leave
+
+### 8.3 Left Click
+- [ ] Left-click opens settings panel
+- [ ] Settings panel displays correctly
+
+### 8.4 Right Click Menu
+- [ ] Right-click shows context menu
+- [ ] Menu options display correctly
+- [ ] Toggle Class Colors works
+- [ ] Lock Position works
+- [ ] Hide Button works
+- [ ] Reset Config works
+
+### 8.5 Dragging
+- [ ] Button can be dragged around minimap
+- [ ] Position is saved after dragging
+- [ ] Locked button cannot be dragged
+- [ ] Position persists after `/reload`
+
+### 8.6 Show/Hide
+- [ ] `/euf minimap hide` hides button
+- [ ] `/euf minimap show` shows button
+- [ ] Settings panel toggle works
+- [ ] Hidden state persists after `/reload`
+
+### 8.7 Reset Position
+- [ ] `/euf minimap reset` resets to default position
+- [ ] Reset button in settings works
+
+---
+
+## 9. Settings Panel
 
 ### 7.1 Opening/Closing
 - [ ] `/euf` or game menu opens settings

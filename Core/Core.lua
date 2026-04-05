@@ -108,6 +108,11 @@ function EUF:InitializeModules()
         self.EditMode:Initialize(self.Database.db)
     end
 
+    -- 小地图按钮
+    if self.MinimapButton then
+        self.MinimapButton:Initialize()
+    end
+
     self:Debug("所有模块初始化完成")
 end
 
@@ -158,6 +163,11 @@ function EUF:OnEvent(event, ...)
         -- 处理缩放待执行队列
         if self.FrameScale then
             self.FrameScale:OnCombatEnd()
+        end
+
+        -- 处理小地图按钮待执行操作
+        if self.MinimapButton then
+            self.MinimapButton:OnCombatEnd()
         end
 
         self:Debug("战斗结束，已处理待执行操作")
@@ -291,6 +301,12 @@ function EUF:HandleCommand(msg)
     elseif command == "status" then
         self:ShowStatus()
 
+    elseif command == "minimap" then
+        self:CommandMinimap(args)
+
+    elseif command == "config" then
+        self:OpenConfig()
+
     else
         self:Print("未知命令:", command)
         self:ShowHelp()
@@ -303,10 +319,12 @@ function EUF:ShowHelp()
         "EnhancedUnitFrames 命令帮助:",
         "  /euf         - 显示此帮助",
         "  /euf help    - 显示此帮助",
+        "  /euf config  - 打开设置面板",
         "  /euf debug   - 切换调试模式",
         "  /euf reset   - 重置所有配置",
         "  /euf scale [player|target|focus] [值] - 设置缩放",
         "  /euf color [on|off] - 开关职业染色",
+        "  /euf minimap [show|hide|reset] - 小地图按钮控制",
         "  /euf enable  - 启用插件",
         "  /euf disable - 禁用插件",
         "  /euf status  - 显示当前状态",
@@ -395,6 +413,37 @@ function EUF:CommandColor(args)
     -- 如果 ClassColors 模块存在，更新状态
     if self.ClassColors then
         self.ClassColors:Refresh()
+    end
+end
+
+-- 小地图按钮命令处理
+function EUF:CommandMinimap(args)
+    if args == "show" then
+        if self.MinimapButton then
+            self.MinimapButton:Show()
+            self:Print("小地图按钮已显示")
+        end
+    elseif args == "hide" then
+        if self.MinimapButton then
+            self.MinimapButton:Hide()
+        end
+    elseif args == "reset" then
+        if self.MinimapButton then
+            self.MinimapButton:ResetPosition()
+            self:Print("小地图按钮位置已重置")
+        end
+    else
+        self:Print("用法: /euf minimap [show|hide|reset]")
+    end
+end
+
+-- 打开设置面板
+function EUF:OpenConfig()
+    if self.OptionsPanel then
+        self.OptionsPanel:Open()
+    else
+        -- 回退方案
+        InterfaceOptionsFrame_OpenToCategory("Enhanced Unit Frames")
     end
 end
 

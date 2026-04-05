@@ -94,6 +94,15 @@ Database.DEFAULTS_PROFILE = {
         showInEditMode = true,
         syncWithBlizzard = true,
     },
+
+    -- 小地图按钮配置
+    minimap = {
+        show = true,           -- 显示小地图按钮
+        hide = false,          -- 隐藏按钮（用户设置）
+        locked = false,        -- 锁定位置
+        radius = 80,           -- 距离小地图中心的半径
+        angle = -45,           -- 按钮角度（右上方，-180到180）
+    },
 }
 
 -- 缩放范围限制

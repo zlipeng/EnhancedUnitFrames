@@ -165,6 +165,34 @@ L["SLASH_RESET"] = "/euf reset - Reset all settings"
 L["SLASH_SCALE"] = "/euf scale <frame> <value> - Set frame scale (0.5-2.0)"
 L["SLASH_COLOR"] = "/euf color - Toggle class colors"
 L["SLASH_CONFIG"] = "/euf config - Open settings panel"
+L["SLASH_MINIMAP"] = "/euf minimap [show|hide|reset] - Minimap button control"
+
+-------------------------------------------------------------------------------
+-- Minimap Button
+-------------------------------------------------------------------------------
+
+L["MINIMAP_BUTTON_TOOLTIP_TITLE"] = "Enhanced Unit Frames"
+L["MINIMAP_BUTTON_TOOLTIP_LEFT"] = "Left-click: Open settings"
+L["MINIMAP_BUTTON_TOOLTIP_RIGHT"] = "Right-click: Quick menu"
+L["MINIMAP_BUTTON_TOOLTIP_DRAG"] = "Drag: Move button position"
+L["MINIMAP_BUTTON_SHOW"] = "Show Minimap Button"
+L["MINIMAP_BUTTON_SHOW_DESC"] = "Display quick access button near minimap"
+L["MINIMAP_BUTTON_LOCK"] = "Lock Button Position"
+L["MINIMAP_BUTTON_LOCK_DESC"] = "Lock minimap button position, prevent dragging"
+L["MINIMAP_BUTTON_RESET"] = "Reset Button Position"
+L["MINIMAP_BUTTON_HIDDEN"] = "Minimap button hidden. Use /euf minimap show to display"
+L["MINIMAP_BUTTON_SHOWN"] = "Minimap button shown"
+L["MINIMAP_BUTTON_RESET_POS"] = "Minimap button position reset"
+
+-------------------------------------------------------------------------------
+-- Context Menu
+-------------------------------------------------------------------------------
+
+L["MENU_OPEN_SETTINGS"] = "Open Settings"
+L["MENU_CLASS_COLORS"] = "Class Colors"
+L["MENU_LOCK_BUTTON"] = "Lock Button Position"
+L["MENU_HIDE_BUTTON"] = "Hide Button"
+L["MENU_RESET_CONFIG"] = "Reset Configuration"
 
 -------------------------------------------------------------------------------
 -- Frame Names
