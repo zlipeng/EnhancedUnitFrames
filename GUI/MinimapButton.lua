@@ -178,8 +178,7 @@ function MinimapButton:OpenSettings()
     if EUF.OptionsPanel then
         EUF.OptionsPanel:Open()
     else
-        -- 回退：打开插件设置页面
-        InterfaceOptionsFrame_OpenToCategory("Enhanced Unit Frames")
+        EUF:Print("设置面板模块未加载")
     end
 end
 

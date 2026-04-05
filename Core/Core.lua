@@ -8,7 +8,7 @@ local addonName, EUF = ...
 EnhancedUnitFrames = EUF
 
 -- 版本信息
-EUF.VERSION = "1.0.0"
+EUF.VERSION = "1.1.0"
 EUF.VERSION_DISPLAY = "v" .. EUF.VERSION
 
 -- 插件状态
@@ -18,6 +18,9 @@ EUF.debugMode = false
 
 -- 待处理的战斗锁定操作队列
 EUF.pendingOperations = {}
+
+-- 框体实例存储
+EUF.frames = {}
 
 -------------------------------------------------------------------------------
 -- 初始化
@@ -42,6 +45,11 @@ function EUF:OnInitialize()
     -- 创建事件框架
     self:EventFrame()
 
+    -- 初始化设置面板（始终初始化，确保出现在选项列表中）
+    if self.OptionsPanel then
+        self.OptionsPanel:Initialize()
+    end
+
     self.initialized = true
     self:Debug("EnhancedUnitFrames 初始化完成 - " .. self.VERSION_DISPLAY)
 end
@@ -52,7 +60,7 @@ function EUF:OnEnable()
         self:OnInitialize()
     end
 
-    -- 检查是否启用
+    -- 检查是否启用（但设置面板始终可用）
     if not self.Database:GetGlobal("enableAddon") then
         self:Debug("插件已禁用")
         return
@@ -60,7 +68,7 @@ function EUF:OnEnable()
 
     self.enabled = true
 
-    -- 初始化各模块
+    -- 初始化各功能模块
     self:InitializeModules()
 
     self:Print("已加载 - " .. self.VERSION_DISPLAY)
@@ -83,37 +91,32 @@ function EUF:InitializeModules()
         self.BlizzardHooks:Initialize()
     end
 
-    -- 职业染色模块
-    if self.ClassColors and self.Database:Get("classColors", "enabled") then
-        self.ClassColors:Initialize(self.Database.db)
-    end
-
-    -- 缩放模块
-    if self.FrameScale then
-        self.FrameScale:Initialize(self.Database.db)
-    end
-
-    -- 材质模块
-    if self.Textures then
-        self.Textures:Initialize(self.Database.db)
-    end
-
-    -- 文字配置模块
-    if self.TextSettings then
-        self.TextSettings:Initialize(self.Database.db)
-    end
-
-    -- 编辑模式集成
-    if self.EditMode then
-        self.EditMode:Initialize(self.Database.db)
-    end
+    -- 初始化新的模块化框体系统
+    self:InitializeFrameModules()
 
     -- 小地图按钮
     if self.MinimapButton then
         self.MinimapButton:Initialize()
     end
 
+    -- 注意：OptionsPanel 已在 OnInitialize() 中初始化
+
     self:Debug("所有模块初始化完成")
+end
+
+-- 初始化模块化框体系统
+function EUF:InitializeFrameModules()
+    local frameKeys = {"player", "target", "focus", "pet", "targettarget"}
+
+    for _, frameKey in ipairs(frameKeys) do
+        if self.FrameBase then
+            local frame = self.FrameBase:New(frameKey)
+            frame:Initialize()
+            self.frames[frameKey] = frame
+        end
+    end
+
+    self:Debug("框体模块初始化完成")
 end
 
 -------------------------------------------------------------------------------
@@ -124,7 +127,7 @@ end
 function EUF:EventFrame()
     local eventFrame = CreateFrame("Frame")
 
-    -- 注册需要监听的事件
+    -- 注册需要监听的事件（注意：EDIT_MODE_MODE_CHANGED 在 12.0 中不存在）
     local events = {
         "PLAYER_LOGIN",
         "PLAYER_LOGOUT",
@@ -133,7 +136,6 @@ function EUF:EventFrame()
         "PLAYER_TARGET_CHANGED",
         "PLAYER_FOCUS_CHANGED",
         "UNIT_CLASSIFICATION_CHANGED",
-        "EDIT_MODE_MODE_CHANGED",
     }
 
     for _, event in ipairs(events) do
@@ -146,6 +148,10 @@ function EUF:EventFrame()
     end)
 
     self.eventFrame = eventFrame
+
+    -- TODO: WoW 12.0 编辑模式 API 需要进一步研究
+    -- EditModeManagerFrame 的方法名称可能已改变
+    -- 暂时通过 EditMode 模块自身的初始化处理
 end
 
 -- 事件分发处理
@@ -160,9 +166,11 @@ function EUF:OnEvent(event, ...)
         -- 战斗结束，执行排队的操作
         self:ProcessPendingOperations()
 
-        -- 处理缩放待执行队列
-        if self.FrameScale then
-            self.FrameScale:OnCombatEnd()
+        -- 通知各框体战斗结束
+        for frameKey, frame in pairs(self.frames) do
+            if frame and frame.OnCombatEnd then
+                frame:OnCombatEnd()
+            end
         end
 
         -- 处理小地图按钮待执行操作
@@ -177,31 +185,15 @@ function EUF:OnEvent(event, ...)
         self:Debug("进入战斗")
 
     elseif event == "PLAYER_TARGET_CHANGED" then
-        -- 目标切换事件
-        if self.ClassColors and self.enabled then
-            self.ClassColors:OnTargetChanged()
-        end
+        -- 目标切换事件（由各框体自己处理）
 
     elseif event == "PLAYER_FOCUS_CHANGED" then
-        -- 焦点切换事件
-        if self.ClassColors and self.enabled then
-            self.ClassColors:OnFocusChanged()
-        end
+        -- 焦点切换事件（由各框体自己处理）
 
     elseif event == "UNIT_CLASSIFICATION_CHANGED" then
-        -- 单位分类变化
-        local unit = ...
-        if self.ClassColors and self.enabled then
-            self.ClassColors:OnUnitClassificationChanged(unit)
-        end
-
-    elseif event == "EDIT_MODE_MODE_CHANGED" then
-        -- 编辑模式状态变化
-        local isInEditMode = ...
-        if self.EditMode then
-            self.EditMode:OnEditModeChanged(isInEditMode)
-        end
+        -- 单位分类变化（由各框体自己处理）
     end
+    -- 注意：编辑模式变化现在通过 hooksecurefunc(EditModeManagerFrame) 处理
 end
 
 -------------------------------------------------------------------------------
@@ -442,8 +434,7 @@ function EUF:OpenConfig()
     if self.OptionsPanel then
         self.OptionsPanel:Open()
     else
-        -- 回退方案
-        InterfaceOptionsFrame_OpenToCategory("Enhanced Unit Frames")
+        self:Print("设置面板模块未加载")
     end
 end
 
@@ -494,16 +485,21 @@ end
 -- 框架加载时自动初始化
 -------------------------------------------------------------------------------
 
--- 使用 ADDON_LOADED 事件触发初始化（如果 PLAYER_LOGIN 已经触发）
+-- 使用 ADDON_LOADED 事件初始化基础设置
+-- 使用 PLAYER_LOGIN 事件启用功能模块
 local initFrame = CreateFrame("Frame")
 initFrame:RegisterEvent("ADDON_LOADED")
+initFrame:RegisterEvent("PLAYER_LOGIN")
+
 initFrame:SetScript("OnEvent", function(frame, event, name)
-    if name == addonName then
-        frame:UnregisterEvent("ADDON_LOADED")
-        -- 延迟到下一帧执行，确保所有文件已加载
-        C_Timer.After(0, function()
-            EUF:OnInitialize()
-        end)
+    if event == "ADDON_LOADED" and name == addonName then
+        -- 基础初始化（数据库、命令注册等）
+        EUF:OnInitialize()
+    elseif event == "PLAYER_LOGIN" then
+        -- 玩家登录后启用功能模块
+        -- 此时暴雪框体已经完全加载
+        frame:UnregisterEvent("PLAYER_LOGIN")
+        EUF:OnEnable()
     end
 end)
 

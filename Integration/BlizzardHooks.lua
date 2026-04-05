@@ -31,27 +31,35 @@ end
 -------------------------------------------------------------------------------
 
 function BlizzardHooks:RegisterAllHooks()
-    -- PlayerFrame 相关
-    self:SafeHook("PlayerFrame_Update", function()
-        self:OnPlayerFrameUpdate()
-    end)
+    -- WoW 12.0: 使用 Mixin 的方式 hook
 
-    -- TargetFrame 相关
-    self:SafeHook("TargetFrame_Update", function()
-        self:OnTargetFrameUpdate()
-    end)
+    -- Hook PlayerFrame 相关 (如果存在)
+    if PlayerFrame_UpdateStatus then
+        self:SafeHook("PlayerFrame_UpdateStatus", function()
+            self:OnPlayerFrameUpdate()
+        end)
+    end
 
-    -- FocusFrame 相关（如果存在）
-    if FocusFrame then
-        self:SafeHook("FocusFrame_Update", function()
-            self:OnFocusFrameUpdate()
+    -- Hook TargetFrameHealthBarMixin.OnValueChanged (WoW 12.0)
+    if TargetFrameHealthBarMixin then
+        self:SafeHookMethod(TargetFrameHealthBarMixin, "OnValueChanged", function(bar)
+            self:OnTargetHealthBarUpdate(bar)
+        end)
+    end
+
+    -- Hook FocusFrame (如果存在)
+    if FocusFrameHealthBarMixin then
+        self:SafeHookMethod(FocusFrameHealthBarMixin, "OnValueChanged", function(bar)
+            self:OnFocusHealthBarUpdate(bar)
         end)
     end
 
     -- 状态条文字更新
-    self:SafeHook("TextStatusBar_UpdateTextString", function(statusBar)
-        self:OnTextStatusBarUpdate(statusBar)
-    end)
+    if TextStatusBar_UpdateTextString then
+        self:SafeHook("TextStatusBar_UpdateTextString", function(statusBar)
+            self:OnTextStatusBarUpdate(statusBar)
+        end)
+    end
 
     -- 单位框体生命条更新
     if UnitFrameHealthBar_Update then
@@ -84,8 +92,8 @@ function BlizzardHooks:OnPlayerFrameUpdate()
     end
 end
 
--- TargetFrame 更新回调
-function BlizzardHooks:OnTargetFrameUpdate()
+-- 目标生命条更新回调
+function BlizzardHooks:OnTargetHealthBarUpdate(bar)
     if not EUF.enabled then return end
 
     -- 职业染色
@@ -94,8 +102,8 @@ function BlizzardHooks:OnTargetFrameUpdate()
     end
 end
 
--- FocusFrame 更新回调
-function BlizzardHooks:OnFocusFrameUpdate()
+-- 焦点生命条更新回调
+function BlizzardHooks:OnFocusHealthBarUpdate(bar)
     if not EUF.enabled then return end
 
     -- 职业染色

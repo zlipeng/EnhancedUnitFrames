@@ -109,6 +109,38 @@ border:SetBackdrop({edgeFile = path, edgeSize = size})
 border:SetBackdropBorderColor(r, g, b, a)
 ```
 
+## API Reference
+
+**Official WoW API Documentation:** https://warcraft.wiki.gg/wiki/World_of_Warcraft_API
+
+All API implementations must align with the official documentation. Key API categories used in this addon:
+
+### Unit Functions
+- `UnitGUID(unit)` - Returns GUID for unit
+- `UnitHealth(unit)`, `UnitHealthMax(unit)` - Health values (may return secret values in combat)
+- `UnitPower(unit)`, `UnitPowerMax(unit)` - Power values (may return secret values in combat)
+- `GetPlayerInfoByGUID(guid)` - Returns class, race, gender, etc.
+- `UnitExists(unit)`, `UnitIsPlayer(unit)`, `UnitIsFriend(unit)` - Unit validation
+
+### Frame Functions
+- `CreateFrame(frameType, name, parent, template)` - Frame creation
+- `frame:SetScale(scale)`, `frame:GetScale()` - Scale (blocked in combat)
+- `frame:Show()`, `frame:Hide()` - Visibility (blocked in combat)
+- `frame:SetSize(width, height)` - Dimensions
+
+### Color APIs
+- `C_ClassColor.GetClassColor(classToken)` - Get class color (non-secret path)
+
+### Combat Status
+- `InCombatLockdown()` - Returns true if in combat (restricted operations)
+- `UnitAffectingCombat(unit)` - Check if specific unit is in combat
+
+### Events
+- `PLAYER_REGEN_ENABLED` - Fired when exiting combat
+- `PLAYER_REGEN_DISABLED` - Fired when entering combat
+
+**Important:** When implementing features, verify against the official API documentation to ensure correct usage and parameter handling.
+
 ## SavedVariables
 
 Defined in TOC as `EnhancedUnitFramesDB` and `EnhancedUnitFramesDBGlobal`. Database.lua handles defaults merging.

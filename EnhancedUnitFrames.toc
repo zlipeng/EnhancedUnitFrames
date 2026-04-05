@@ -6,7 +6,7 @@
 ## Notes-zhCN: 增强默认的玩家和目标单位框体，支持职业染色、缩放、材质和文字自定义。兼容魔兽世界 12.0（至暗之夜）。
 ## Notes-zhTW: 增強預設的玩家和目標單位框架，支援職業染色、缩放、材質和文字自訂。兼容魔獸世界 12.0（至暗之夜）。
 ## Author: EnhancedUnitFrames Team
-## Version: 1.0.0
+## Version: 1.1.0
 ## SavedVariables: EnhancedUnitFramesDBGlobal
 ## SavedVariablesPerCharacter: EnhancedUnitFramesDB
 ## OptionalDeps: LibSharedMedia-3.0
@@ -24,7 +24,27 @@ Core\SecretSafe.lua
 Core\Database.lua
 Core\Core.lua
 
-# Modules
+# Module Base Classes
+Modules\ModuleBase.lua
+Modules\FrameBase.lua
+Modules\TextModuleBase.lua
+
+# Portrait Module
+Modules\PortraitModule.lua
+
+# Bar Modules
+Modules\HealthBarModule.lua
+Modules\PowerBarModule.lua
+Modules\SecondaryPowerBarModule.lua
+Modules\CastBarModule.lua
+Modules\BorderModule.lua
+
+# Text Modules
+Modules\NameTextModule.lua
+Modules\HealthTextModule.lua
+Modules\PowerTextModule.lua
+
+# Legacy Modules (will be refactored)
 Modules\ClassColors.lua
 Modules\FrameScale.lua
 Modules\Textures.lua

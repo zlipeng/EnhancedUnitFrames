@@ -11,6 +11,9 @@ EUF.OptionsPanel = OptionsPanel
 OptionsPanel.initialized = false
 OptionsPanel.category = nil
 
+-- 设置变量前缀
+local PREFIX = "EUF_"
+
 -------------------------------------------------------------------------------
 -- 初始化
 -------------------------------------------------------------------------------
@@ -18,7 +21,6 @@ OptionsPanel.category = nil
 function OptionsPanel:Initialize()
     if self.initialized then return end
 
-    -- 创建主设置分类
     self:CreateMainCategory()
 
     self.initialized = true
@@ -30,8 +32,7 @@ end
 -------------------------------------------------------------------------------
 
 function OptionsPanel:CreateMainCategory()
-    -- 使用 12.0 推荐的垂直布局分类
-    local category = Settings.RegisterVerticalLayoutCategory("Enhanced Unit Frames")
+    local category, layout = Settings.RegisterVerticalLayoutCategory("Enhanced Unit Frames")
 
     if not category then
         EUF:Debug("OptionsPanel: 无法创建设置分类")
@@ -40,23 +41,14 @@ function OptionsPanel:CreateMainCategory()
 
     self.category = category
 
-    -- 设置分类 ID（用于 Settings.OpenToCategory）
-    category.ID = "Enhanced Unit Frames"
-
     -- 通用设置
     self:CreateGeneralSettings(category)
 
-    -- 职业染色设置
-    self:CreateClassColorSettings(category)
-
-    -- 缩放设置
-    self:CreateScaleSettings(category)
-
-    -- 材质设置
-    self:CreateTextureSettings(category)
-
-    -- 文字设置
-    self:CreateTextSettings(category)
+    -- 各框体设置
+    self:CreateFrameSettings(category, "player", "玩家框体")
+    self:CreateFrameSettings(category, "target", "目标框体")
+    self:CreateFrameSettings(category, "focus", "焦点框体")
+    self:CreateFrameSettings(category, "pet", "宠物框体")
 
     -- 小地图按钮设置
     self:CreateMinimapSettings(category)
@@ -64,10 +56,58 @@ function OptionsPanel:CreateMainCategory()
     -- 高级设置
     self:CreateAdvancedSettings(category)
 
-    -- 注册到暴雪设置系统
     Settings.RegisterAddOnCategory(category)
 
-    EUF:Debug("OptionsPanel: 主设置分类已创建")
+    EUF:Debug("OptionsPanel: 主设置分类已创建, ID = " .. tostring(category:GetID()))
+end
+
+-------------------------------------------------------------------------------
+-- 辅助函数
+-------------------------------------------------------------------------------
+
+local function CreateCheckbox(category, variable, name, default, tooltip, getter, setter)
+    local varKey = PREFIX .. variable
+
+    local setting = Settings.RegisterProxySetting(
+        category,
+        varKey,
+        Settings.VarType.Boolean,
+        name,
+        default,
+        getter or function() return EUF.Database:GetGlobal(variable) or default end,
+        setter or function(value) EUF.Database:SetGlobal(variable, value) end
+    )
+
+    local element = Settings.CreateCheckbox(category, setting, tooltip)
+
+    return setting, element
+end
+
+local function CreateSlider(category, variable, name, default, minVal, maxVal, step, tooltip, getter, setter)
+    local varKey = PREFIX .. variable
+
+    local setting = Settings.RegisterProxySetting(
+        category,
+        varKey,
+        Settings.VarType.Number,
+        name,
+        default,
+        getter or function() return EUF.Database:GetGlobal(variable) or default end,
+        setter or function(value) EUF.Database:SetGlobal(variable, value) end
+    )
+
+    local options = Settings.CreateSliderOptions(minVal, maxVal, step)
+    options:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right)
+
+    local element = Settings.CreateSlider(category, setting, options, tooltip)
+
+    return setting, element
+end
+
+local function CreateHeader(category, text)
+    local init = Settings.CreateElementInitializer("SettingsListSectionHeaderTemplate", { name = text })
+    Settings.RegisterInitializer(category, init)
+    return init
 end
 
 -------------------------------------------------------------------------------
@@ -75,330 +115,374 @@ end
 -------------------------------------------------------------------------------
 
 function OptionsPanel:CreateGeneralSettings(category)
-    -- 启用插件
-    local enableSetting = Settings.RegisterAddOnSetting(
-        category,
-        "启用插件",
-        "enableAddon",
-        EUF.Database.global,
-        Settings.GetValueTypeBoolean(),
-        true
-    )
-    Settings.CreateCheckBox(category, enableSetting, "启用或禁用 Enhanced Unit Frames 插件")
+    CreateHeader(category, "通用设置")
 
-    Settings.SetOnValueChangedCallback("enableAddon", function()
-        if EUF.Database:GetGlobal("enableAddon") then
-            EUF:OnEnable()
-        else
-            EUF:OnDisable()
+    -- 启用插件
+    CreateCheckbox(category, "enableAddon", "启用插件", true, "启用或禁用 Enhanced Unit Frames 插件",
+        function() return EUF.Database:GetGlobal("enableAddon") ~= false end,
+        function(value)
+            EUF.Database:SetGlobal("enableAddon", value)
+            if value then
+                EUF:OnEnable()
+            else
+                EUF:OnDisable()
+            end
         end
-    end)
+    )
 
     -- 调试模式
-    local debugSetting = Settings.RegisterAddOnSetting(
-        category,
-        "调试模式",
-        "debugMode",
-        EUF.Database.global,
-        Settings.GetValueTypeBoolean(),
-        false
-    )
-    Settings.CreateCheckBox(category, debugSetting, "在聊天框输出调试信息")
-
-    Settings.SetOnValueChangedCallback("debugMode", function()
-        EUF.debugMode = EUF.Database:GetGlobal("debugMode")
-    end)
-
-    Settings.AddSpacer(category)
-end
-
--------------------------------------------------------------------------------
--- 职业染色设置
--------------------------------------------------------------------------------
-
-function OptionsPanel:CreateClassColorSettings(category)
-    -- 分隔标题
-    Settings.RegisterSetting(category, "职业染色", function()
-        return "|cFFFFFFFF职业染色设置|r"
-    end)
-
-    -- 创建本地存储表（用于 Settings API）
-    self.classColorSettings = self.classColorSettings or {}
-
-    -- 启用职业染色
-    local enabledSetting = Settings.RegisterAddOnSetting(
-        category,
-        "启用职业染色",
-        "classColorsEnabled",
-        self.classColorSettings,
-        Settings.GetValueTypeBoolean(),
-        EUF.Database:Get("classColors", "enabled") and true or false
-    )
-    Settings.CreateCheckBox(category, enabledSetting, "根据单位职业自动着色生命条")
-
-    Settings.SetOnValueChangedCallback("classColorsEnabled", function()
-        local value = self.classColorSettings.classColorsEnabled
-        EUF.Database:Set(value, "classColors", "enabled")
-        self:RefreshClassColors()
-    end)
-
-    -- 染色背景
-    local bgSetting = Settings.RegisterAddOnSetting(
-        category,
-        "染色背景",
-        "classColorsBackground",
-        self.classColorSettings,
-        Settings.GetValueTypeBoolean(),
-        EUF.Database:Get("classColors", "colorBackground") and true or false
-    )
-    Settings.CreateCheckBox(category, bgSetting, "同时为生命条背景添加职业色")
-
-    Settings.SetOnValueChangedCallback("classColorsBackground", function()
-        local value = self.classColorSettings.classColorsBackground
-        EUF.Database:Set(value, "classColors", "colorBackground")
-        self:RefreshClassColors()
-    end)
-
-    -- 染色边框
-    local borderSetting = Settings.RegisterAddOnSetting(
-        category,
-        "染色边框",
-        "classColorsBorder",
-        self.classColorSettings,
-        Settings.GetValueTypeBoolean(),
-        EUF.Database:Get("classColors", "colorBorder") and true or false
-    )
-    Settings.CreateCheckBox(category, borderSetting, "为框体边框添加职业色")
-
-    Settings.SetOnValueChangedCallback("classColorsBorder", function()
-        local value = self.classColorSettings.classColorsBorder
-        EUF.Database:Set(value, "classColors", "colorBorder")
-        self:RefreshClassColors()
-    end)
-
-    -- NPC使用反应色
-    local npcSetting = Settings.RegisterAddOnSetting(
-        category,
-        "NPC反应色",
-        "classColorsNPC",
-        self.classColorSettings,
-        Settings.GetValueTypeBoolean(),
-        EUF.Database:Get("classColors", "colorNPCByReaction") and true or false
-    )
-    Settings.CreateCheckBox(category, npcSetting, "非玩家单位使用反应色（友好/中立/敌对）")
-
-    Settings.SetOnValueChangedCallback("classColorsNPC", function()
-        local value = self.classColorSettings.classColorsNPC
-        EUF.Database:Set(value, "classColors", "colorNPCByReaction")
-        self:RefreshClassColors()
-    end)
-
-    Settings.AddSpacer(category)
-end
-
--------------------------------------------------------------------------------
--- 缩放设置
--------------------------------------------------------------------------------
-
-function OptionsPanel:CreateScaleSettings(category)
-    -- 分隔标题
-    Settings.RegisterSetting(category, "框体缩放", function()
-        return "|cFFFFFFFF框体缩放设置|r"
-    end)
-
-    -- 创建本地存储表
-    self.scaleSettings = self.scaleSettings or {}
-
-    -- 玩家框体缩放
-    self:CreateScaleSlider(category, "玩家框体缩放", "player")
-
-    -- 目标框体缩放
-    self:CreateScaleSlider(category, "目标框体缩放", "target")
-
-    -- 焦点框体缩放
-    self:CreateScaleSlider(category, "焦点框体缩放", "focus")
-
-    -- 宠物框体缩放
-    self:CreateScaleSlider(category, "宠物框体缩放", "pet")
-
-    Settings.AddSpacer(category)
-end
-
--- 创建缩放滑块
-function OptionsPanel:CreateScaleSlider(category, displayName, frameKey)
-    self.scaleSettings = self.scaleSettings or {}
-
-    local varKey = "scale_" .. frameKey
-    local currentValue = EUF.Database:GetScale(frameKey)
-    self.scaleSettings[varKey] = currentValue
-
-    local setting = Settings.RegisterAddOnSetting(
-        category,
-        displayName,
-        varKey,
-        self.scaleSettings,
-        Settings.GetValueTypeNumber(),
-        currentValue
-    )
-
-    local options = Settings.CreateSliderOptions(0.5, 2.0, 0.05)
-    options:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right)
-
-    Settings.CreateSlider(category, setting, options, "调整框体大小 (50% - 200%)")
-
-    Settings.SetOnValueChangedCallback(varKey, function()
-        local scale = self.scaleSettings[varKey]
-        EUF.Database:SetScale(frameKey, scale)
-        if EUF.FrameScale and EUF.FrameScale.initialized then
-            EUF.FrameScale:SetFrameScale(frameKey, scale)
+    CreateCheckbox(category, "debugMode", "调试模式", false, "在聊天框输出调试信息",
+        function() return EUF.Database:GetGlobal("debugMode") == true end,
+        function(value)
+            EUF.Database:SetGlobal("debugMode", value)
+            EUF.debugMode = value
         end
-    end)
+    )
 end
 
 -------------------------------------------------------------------------------
--- 材质设置
+-- 框体设置
 -------------------------------------------------------------------------------
 
-function OptionsPanel:CreateTextureSettings(category)
-    -- 分隔标题
-    Settings.RegisterSetting(category, "材质设置", function()
-        return "|cFFFFFFFF材质设置|r"
-    end)
+function OptionsPanel:CreateFrameSettings(category, frameKey, displayName)
+    CreateHeader(category, displayName)
 
-    -- 创建本地存储表
-    self.textureSettings = self.textureSettings or {}
-
-    -- 生命条材质
-    local healthTexture = EUF.Database:Get("textures", "healthBar") or "Blizzard"
-    self.textureSettings.healthBarTexture = healthTexture
-
-    local healthTextureSetting = Settings.RegisterAddOnSetting(
-        category,
-        "生命条材质",
-        "healthBarTexture",
-        self.textureSettings,
-        Settings.GetValueTypeString(),
-        healthTexture
+    -- 启用自定义
+    CreateCheckbox(category, frameKey .. "_enabled", "启用自定义", true, "为该框体启用自定义设置",
+        function() return EUF.Database:Get("frames", frameKey, "enabled") ~= false end,
+        function(value)
+            EUF.Database:Set(value, "frames", frameKey, "enabled")
+            if EUF.frames[frameKey] then
+                EUF.frames[frameKey]:SetEnabled(value)
+            end
+        end
     )
 
-    local textureOptions = self:CreateTextureOptions()
-    Settings.CreateDropDown(category, healthTextureSetting, textureOptions, "选择生命条材质样式")
-
-    Settings.SetOnValueChangedCallback("healthBarTexture", function()
-        local value = self.textureSettings.healthBarTexture
-        EUF.Database:Set(value, "textures", "healthBar")
-        self:RefreshTextures()
-    end)
-
-    -- 法力条材质
-    local manaTexture = EUF.Database:Get("textures", "manaBar") or "Blizzard"
-    self.textureSettings.manaBarTexture = manaTexture
-
-    local manaTextureSetting = Settings.RegisterAddOnSetting(
-        category,
-        "法力条材质",
-        "manaBarTexture",
-        self.textureSettings,
-        Settings.GetValueTypeString(),
-        manaTexture
+    -- 缩放
+    CreateSlider(category, frameKey .. "_scale", "框体缩放", 1.0, 0.5, 2.0, 0.05, "调整框体大小 (50% - 200%)",
+        function() return EUF.Database:Get("frames", frameKey, "scale") or 1.0 end,
+        function(value)
+            EUF.Database:Set(EUF.Database:ValidateScale(value), "frames", frameKey, "scale")
+            if EUF.frames[frameKey] and not InCombatLockdown() then
+                local blizzFrame = _G[EUF.FrameBase.BLIZZARD_FRAMES[frameKey]]
+                if blizzFrame then
+                    blizzFrame:SetScale(value)
+                end
+            end
+        end
     )
 
-    Settings.CreateDropDown(category, manaTextureSetting, textureOptions, "选择法力条材质样式")
+    -- 头像设置
+    self:CreatePortraitSettings(category, frameKey)
 
-    Settings.SetOnValueChangedCallback("manaBarTexture", function()
-        local value = self.textureSettings.manaBarTexture
-        EUF.Database:Set(value, "textures", "manaBar")
-        self:RefreshTextures()
-    end)
+    -- 生命条设置
+    self:CreateHealthBarSettings(category, frameKey)
 
-    -- 边框样式
-    local borderStyle = EUF.Database:Get("textures", "border") or "None"
-    self.textureSettings.borderStyle = borderStyle
+    -- 能量条设置
+    self:CreatePowerBarSettings(category, frameKey)
 
-    local borderSetting = Settings.RegisterAddOnSetting(
-        category,
-        "边框样式",
-        "borderStyle",
-        self.textureSettings,
-        Settings.GetValueTypeString(),
-        borderStyle
+    -- 次级能量条设置（仅玩家）
+    if frameKey == "player" then
+        self:CreateSecondaryPowerBarSettings(category, frameKey)
+    end
+
+    -- 施法条设置
+    self:CreateCastBarSettings(category, frameKey)
+
+    -- 边框设置
+    self:CreateBorderSettings(category, frameKey)
+end
+
+function OptionsPanel:CreateHealthBarSettings(category, frameKey)
+    -- 启用生命条自定义
+    CreateCheckbox(category, frameKey .. "_healthBarEnabled", "启用生命条自定义", true, "启用生命条自定义设置",
+        function() return EUF.Database:Get("frames", frameKey, "healthBar", "enabled") ~= false end,
+        function(value)
+            EUF.Database:Set(value, "frames", frameKey, "healthBar", "enabled")
+            if EUF.frames[frameKey] and EUF.frames[frameKey].modules and EUF.frames[frameKey].modules.healthBar then
+                local config = EUF.Database:Get("frames", frameKey, "healthBar")
+                EUF.frames[frameKey].modules.healthBar:ApplyConfig(config)
+            end
+        end
     )
 
-    local borderOptions = self:CreateBorderOptions()
-    Settings.CreateDropDown(category, borderSetting, borderOptions, "选择框体边框样式")
+    -- 使用职业染色
+    CreateCheckbox(category, frameKey .. "_healthClassColor", "生命条使用职业染色", true, "根据单位职业自动着色生命条",
+        function() return EUF.Database:Get("frames", frameKey, "healthBar", "useClassColor") ~= false end,
+        function(value)
+            EUF.Database:Set(value, "frames", frameKey, "healthBar", "useClassColor")
+            if EUF.frames[frameKey] and EUF.frames[frameKey].modules and EUF.frames[frameKey].modules.healthBar then
+                EUF.frames[frameKey].modules.healthBar:Update()
+            end
+        end
+    )
 
-    Settings.SetOnValueChangedCallback("borderStyle", function()
-        local value = self.textureSettings.borderStyle
-        EUF.Database:Set(value, "textures", "border")
-        self:RefreshTextures()
-    end)
+    -- 生命条宽度
+    CreateSlider(category, frameKey .. "_healthWidth", "生命条宽度", 200, 50, 400, 10, "调整生命条宽度",
+        function() return EUF.Database:Get("frames", frameKey, "healthBar", "width") or 200 end,
+        function(value)
+            EUF.Database:Set(value, "frames", frameKey, "healthBar", "width")
+            if EUF.frames[frameKey] and EUF.frames[frameKey].modules and EUF.frames[frameKey].modules.healthBar then
+                EUF.frames[frameKey].modules.healthBar:SetWidth(value)
+            end
+        end
+    )
 
-    Settings.AddSpacer(category)
+    -- 生命条高度
+    CreateSlider(category, frameKey .. "_healthHeight", "生命条高度", 24, 5, 50, 1, "调整生命条高度",
+        function() return EUF.Database:Get("frames", frameKey, "healthBar", "height") or 24 end,
+        function(value)
+            EUF.Database:Set(value, "frames", frameKey, "healthBar", "height")
+            if EUF.frames[frameKey] and EUF.frames[frameKey].modules and EUF.frames[frameKey].modules.healthBar then
+                EUF.frames[frameKey].modules.healthBar:SetHeight(value)
+            end
+        end
+    )
+end
+
+function OptionsPanel:CreatePowerBarSettings(category, frameKey)
+    -- 启用能量条自定义
+    CreateCheckbox(category, frameKey .. "_powerBarEnabled", "启用能量条自定义", true, "启用能量条自定义设置",
+        function() return EUF.Database:Get("frames", frameKey, "powerBar", "enabled") ~= false end,
+        function(value)
+            EUF.Database:Set(value, "frames", frameKey, "powerBar", "enabled")
+            if EUF.frames[frameKey] and EUF.frames[frameKey].modules and EUF.frames[frameKey].modules.powerBar then
+                local config = EUF.Database:Get("frames", frameKey, "powerBar")
+                EUF.frames[frameKey].modules.powerBar:ApplyConfig(config)
+            end
+        end
+    )
+
+    -- 能量条使用能量类型颜色
+    CreateCheckbox(category, frameKey .. "_powerTypeColor", "能量条按类型染色", true, "根据能量类型自动着色能量条",
+        function() return EUF.Database:Get("frames", frameKey, "powerBar", "usePowerTypeColor") ~= false end,
+        function(value)
+            EUF.Database:Set(value, "frames", frameKey, "powerBar", "usePowerTypeColor")
+            if EUF.frames[frameKey] and EUF.frames[frameKey].modules and EUF.frames[frameKey].modules.powerBar then
+                EUF.frames[frameKey].modules.powerBar:Update()
+            end
+        end
+    )
+
+    -- 能量条宽度
+    CreateSlider(category, frameKey .. "_powerWidth", "能量条宽度", 200, 50, 400, 10, "调整能量条宽度",
+        function() return EUF.Database:Get("frames", frameKey, "powerBar", "width") or 200 end,
+        function(value)
+            EUF.Database:Set(value, "frames", frameKey, "powerBar", "width")
+            if EUF.frames[frameKey] and EUF.frames[frameKey].modules and EUF.frames[frameKey].modules.powerBar then
+                EUF.frames[frameKey].modules.powerBar:SetWidth(value)
+            end
+        end
+    )
+
+    -- 能量条高度
+    CreateSlider(category, frameKey .. "_powerHeight", "能量条高度", 12, 3, 30, 1, "调整能量条高度",
+        function() return EUF.Database:Get("frames", frameKey, "powerBar", "height") or 12 end,
+        function(value)
+            EUF.Database:Set(value, "frames", frameKey, "powerBar", "height")
+            if EUF.frames[frameKey] and EUF.frames[frameKey].modules and EUF.frames[frameKey].modules.powerBar then
+                EUF.frames[frameKey].modules.powerBar:SetHeight(value)
+            end
+        end
+    )
 end
 
 -------------------------------------------------------------------------------
--- 文字设置
+-- 头像设置
 -------------------------------------------------------------------------------
 
-function OptionsPanel:CreateTextSettings(category)
-    -- 分隔标题
-    Settings.RegisterSetting(category, "文字设置", function()
-        return "|cFFFFFFFF文字设置|r"
-    end)
-
-    -- 创建本地存储表
-    self.textSettings = self.textSettings or {}
-
-    -- 玩家健康值格式
-    local playerFormat = EUF.Database:Get("text", "formats", "player", "health") or "DEFAULT"
-    self.textSettings.playerHealthFormat = playerFormat
-
-    local playerHealthFormatSetting = Settings.RegisterAddOnSetting(
-        category,
-        "玩家生命值格式",
-        "playerHealthFormat",
-        self.textSettings,
-        Settings.GetValueTypeString(),
-        playerFormat
+function OptionsPanel:CreatePortraitSettings(category, frameKey)
+    -- 启用头像
+    CreateCheckbox(category, frameKey .. "_portraitEnabled", "显示头像", true, "显示单位头像",
+        function() return EUF.Database:Get("frames", frameKey, "portrait", "enabled") ~= false end,
+        function(value)
+            EUF.Database:Set(value, "frames", frameKey, "portrait", "enabled")
+            if EUF.frames[frameKey] and EUF.frames[frameKey].modules and EUF.frames[frameKey].modules.portrait then
+                -- 更新模块配置并应用
+                local config = EUF.Database:Get("frames", frameKey, "portrait")
+                EUF.frames[frameKey].modules.portrait:ApplyConfig(config)
+            end
+        end
     )
 
-    local formatOptions = self:CreateHealthFormatOptions()
-    Settings.CreateDropDown(category, playerHealthFormatSetting, formatOptions,
-        "选择玩家框体生命值显示格式 |cFFFF0000(12.0部分格式在战斗中可能受限)|r")
-
-    Settings.SetOnValueChangedCallback("playerHealthFormat", function()
-        local format = self.textSettings.playerHealthFormat
-        EUF.Database:Set(format, "text", "formats", "player", "health")
-        if EUF.TextSettings and EUF.TextSettings.initialized then
-            EUF.TextSettings:SetHealthTextFormat("player", format)
+    -- 头像宽度
+    CreateSlider(category, frameKey .. "_portraitWidth", "头像宽度", 64, 32, 128, 4, "调整头像宽度",
+        function() return EUF.Database:Get("frames", frameKey, "portrait", "width") or 64 end,
+        function(value)
+            EUF.Database:Set(value, "frames", frameKey, "portrait", "width")
+            if EUF.frames[frameKey] and EUF.frames[frameKey].modules and EUF.frames[frameKey].modules.portrait then
+                EUF.frames[frameKey].modules.portrait:SetSize(value, EUF.Database:Get("frames", frameKey, "portrait", "height") or 64)
+            end
         end
-    end)
-
-    -- 目标健康值格式
-    local targetFormat = EUF.Database:Get("text", "formats", "target", "health") or "DEFAULT"
-    self.textSettings.targetHealthFormat = targetFormat
-
-    local targetHealthFormatSetting = Settings.RegisterAddOnSetting(
-        category,
-        "目标生命值格式",
-        "targetHealthFormat",
-        self.textSettings,
-        Settings.GetValueTypeString(),
-        targetFormat
     )
 
-    Settings.CreateDropDown(category, targetHealthFormatSetting, formatOptions,
-        "选择目标框体生命值显示格式")
-
-    Settings.SetOnValueChangedCallback("targetHealthFormat", function()
-        local format = self.textSettings.targetHealthFormat
-        EUF.Database:Set(format, "text", "formats", "target", "health")
-        if EUF.TextSettings and EUF.TextSettings.initialized then
-            EUF.TextSettings:SetHealthTextFormat("target", format)
+    -- 头像高度
+    CreateSlider(category, frameKey .. "_portraitHeight", "头像高度", 64, 32, 128, 4, "调整头像高度",
+        function() return EUF.Database:Get("frames", frameKey, "portrait", "height") or 64 end,
+        function(value)
+            EUF.Database:Set(value, "frames", frameKey, "portrait", "height")
+            if EUF.frames[frameKey] and EUF.frames[frameKey].modules and EUF.frames[frameKey].modules.portrait then
+                EUF.frames[frameKey].modules.portrait:SetSize(EUF.Database:Get("frames", frameKey, "portrait", "width") or 64, value)
+            end
         end
-    end)
+    )
 
-    Settings.AddSpacer(category)
+    -- 头像边框
+    CreateCheckbox(category, frameKey .. "_portraitBorder", "显示头像边框", true, "为头像添加边框",
+        function() return EUF.Database:Get("frames", frameKey, "portrait", "borderEnabled") ~= false end,
+        function(value)
+            EUF.Database:Set(value, "frames", frameKey, "portrait", "borderEnabled")
+            if EUF.frames[frameKey] and EUF.frames[frameKey].modules and EUF.frames[frameKey].modules.portrait then
+                EUF.frames[frameKey].modules.portrait:ApplyConfig()
+            end
+        end
+    )
+end
+
+-------------------------------------------------------------------------------
+-- 次级能量条设置（仅玩家）
+-------------------------------------------------------------------------------
+
+function OptionsPanel:CreateSecondaryPowerBarSettings(category, frameKey)
+    CreateHeader(category, "次级能量条设置")
+
+    -- 启用次级能量条
+    CreateCheckbox(category, frameKey .. "_secondaryPowerEnabled", "显示次级能量条", true, "显示职业特殊能量（神圣能量、连击点等）",
+        function() return EUF.Database:Get("frames", frameKey, "secondaryPowerBar", "enabled") ~= false end,
+        function(value)
+            EUF.Database:Set(value, "frames", frameKey, "secondaryPowerBar", "enabled")
+            if EUF.frames[frameKey] and EUF.frames[frameKey].modules and EUF.frames[frameKey].modules.secondaryPowerBar then
+                local config = EUF.Database:Get("frames", frameKey, "secondaryPowerBar")
+                EUF.frames[frameKey].modules.secondaryPowerBar:ApplyConfig(config)
+            end
+        end
+    )
+
+    -- 次级能量条宽度
+    CreateSlider(category, frameKey .. "_secondaryPowerWidth", "次级能量条宽度", 200, 50, 400, 10, "调整次级能量条宽度",
+        function() return EUF.Database:Get("frames", frameKey, "secondaryPowerBar", "width") or 200 end,
+        function(value)
+            EUF.Database:Set(value, "frames", frameKey, "secondaryPowerBar", "width")
+            if EUF.frames[frameKey] and EUF.frames[frameKey].modules and EUF.frames[frameKey].modules.secondaryPowerBar then
+                EUF.frames[frameKey].modules.secondaryPowerBar:ApplyConfig()
+            end
+        end
+    )
+
+    -- 次级能量条高度
+    CreateSlider(category, frameKey .. "_secondaryPowerHeight", "次级能量条高度", 6, 3, 20, 1, "调整次级能量条高度",
+        function() return EUF.Database:Get("frames", frameKey, "secondaryPowerBar", "height") or 6 end,
+        function(value)
+            EUF.Database:Set(value, "frames", frameKey, "secondaryPowerBar", "height")
+            if EUF.frames[frameKey] and EUF.frames[frameKey].modules and EUF.frames[frameKey].modules.secondaryPowerBar then
+                EUF.frames[frameKey].modules.secondaryPowerBar:ApplyConfig()
+            end
+        end
+    )
+end
+
+-------------------------------------------------------------------------------
+-- 施法条设置
+-------------------------------------------------------------------------------
+
+function OptionsPanel:CreateCastBarSettings(category, frameKey)
+    CreateHeader(category, "施法条设置")
+
+    -- 启用施法条
+    CreateCheckbox(category, frameKey .. "_castBarEnabled", "显示施法条", true, "显示施法进度条",
+        function() return EUF.Database:Get("frames", frameKey, "castBar", "enabled") ~= false end,
+        function(value)
+            EUF.Database:Set(value, "frames", frameKey, "castBar", "enabled")
+            if EUF.frames[frameKey] and EUF.frames[frameKey].modules and EUF.frames[frameKey].modules.castBar then
+                local config = EUF.Database:Get("frames", frameKey, "castBar")
+                EUF.frames[frameKey].modules.castBar:ApplyConfig(config)
+            end
+        end
+    )
+
+    -- 施法条宽度
+    CreateSlider(category, frameKey .. "_castBarWidth", "施法条宽度", 200, 100, 400, 10, "调整施法条宽度",
+        function() return EUF.Database:Get("frames", frameKey, "castBar", "width") or 200 end,
+        function(value)
+            EUF.Database:Set(value, "frames", frameKey, "castBar", "width")
+            if EUF.frames[frameKey] and EUF.frames[frameKey].modules and EUF.frames[frameKey].modules.castBar then
+                EUF.frames[frameKey].modules.castBar:ApplyConfig()
+            end
+        end
+    )
+
+    -- 施法条高度
+    CreateSlider(category, frameKey .. "_castBarHeight", "施法条高度", 16, 8, 40, 1, "调整施法条高度",
+        function() return EUF.Database:Get("frames", frameKey, "castBar", "height") or 16 end,
+        function(value)
+            EUF.Database:Set(value, "frames", frameKey, "castBar", "height")
+            if EUF.frames[frameKey] and EUF.frames[frameKey].modules and EUF.frames[frameKey].modules.castBar then
+                EUF.frames[frameKey].modules.castBar:ApplyConfig()
+            end
+        end
+    )
+
+    -- 显示施法计时器
+    CreateCheckbox(category, frameKey .. "_castBarTimer", "显示施法计时器", true, "显示剩余施法时间",
+        function() return EUF.Database:Get("frames", frameKey, "castBar", "showTimer") ~= false end,
+        function(value)
+            EUF.Database:Set(value, "frames", frameKey, "castBar", "showTimer")
+        end
+    )
+
+    -- 显示施法图标
+    CreateCheckbox(category, frameKey .. "_castBarIcon", "显示施法图标", true, "显示施法技能图标",
+        function() return EUF.Database:Get("frames", frameKey, "castBar", "showIcon") ~= false end,
+        function(value)
+            EUF.Database:Set(value, "frames", frameKey, "castBar", "showIcon")
+        end
+    )
+end
+
+-------------------------------------------------------------------------------
+-- 边框设置
+-------------------------------------------------------------------------------
+
+function OptionsPanel:CreateBorderSettings(category, frameKey)
+    CreateHeader(category, "边框设置")
+
+    -- 启用边框
+    CreateCheckbox(category, frameKey .. "_borderEnabled", "显示边框", false, "为框体添加边框",
+        function() return EUF.Database:Get("frames", frameKey, "border", "enabled") == true end,
+        function(value)
+            EUF.Database:Set(value, "frames", frameKey, "border", "enabled")
+            if EUF.frames[frameKey] and EUF.frames[frameKey].modules and EUF.frames[frameKey].modules.border then
+                local config = EUF.Database:Get("frames", frameKey, "border")
+                EUF.frames[frameKey].modules.border:ApplyConfig(config)
+            end
+        end
+    )
+
+    -- 边框粗细
+    CreateSlider(category, frameKey .. "_borderSize", "边框粗细", 2, 1, 5, 1, "调整边框粗细",
+        function() return EUF.Database:Get("frames", frameKey, "border", "size") or 2 end,
+        function(value)
+            EUF.Database:Set(value, "frames", frameKey, "border", "size")
+            if EUF.frames[frameKey] and EUF.frames[frameKey].modules and EUF.frames[frameKey].modules.border then
+                EUF.frames[frameKey].modules.border:ApplyConfig()
+            end
+        end
+    )
+
+    -- 使用职业色边框
+    CreateCheckbox(category, frameKey .. "_borderClassColor", "使用职业色边框", false, "边框颜色随职业变化",
+        function() return EUF.Database:Get("frames", frameKey, "border", "useClassColor") == true end,
+        function(value)
+            EUF.Database:Set(value, "frames", frameKey, "border", "useClassColor")
+            if EUF.frames[frameKey] and EUF.frames[frameKey].modules and EUF.frames[frameKey].modules.border then
+                if value then
+                    EUF.frames[frameKey].modules.border:SetClassColor()
+                else
+                    EUF.frames[frameKey].modules.border:ApplyConfig()
+                end
+            end
+        end
+    )
 end
 
 -------------------------------------------------------------------------------
@@ -406,68 +490,26 @@ end
 -------------------------------------------------------------------------------
 
 function OptionsPanel:CreateMinimapSettings(category)
-    -- 分隔标题
-    Settings.RegisterSetting(category, "小地图按钮", function()
-        return "|cFFFFFFFF小地图按钮设置|r"
-    end)
-
-    -- 创建本地存储表
-    self.minimapSettings = self.minimapSettings or {}
+    CreateHeader(category, "小地图按钮设置")
 
     -- 显示小地图按钮
-    local showButton = not EUF.Database:Get("minimap", "hide")
-    self.minimapSettings.showMinimapButton = showButton
-
-    local showSetting = Settings.RegisterAddOnSetting(
-        category,
-        "显示小地图按钮",
-        "showMinimapButton",
-        self.minimapSettings,
-        Settings.GetValueTypeBoolean(),
-        showButton
-    )
-    Settings.CreateCheckBox(category, showSetting, "在小地图旁显示快捷按钮")
-
-    Settings.SetOnValueChangedCallback("showMinimapButton", function()
-        local value = self.minimapSettings.showMinimapButton
-        EUF.Database:Set(not value, "minimap", "hide")
-        if EUF.MinimapButton then
-            EUF.MinimapButton:Refresh()
+    CreateCheckbox(category, "showMinimapButton", "显示小地图按钮", false, "在小地图旁显示快捷按钮",
+        function() return EUF.Database:Get("minimap", "hide") ~= true end,
+        function(value)
+            EUF.Database:Set(not value, "minimap", "hide")
+            if EUF.MinimapButton then
+                EUF.MinimapButton:Refresh()
+            end
         end
-    end)
+    )
 
     -- 锁定按钮位置
-    local locked = EUF.Database:Get("minimap", "locked")
-    self.minimapSettings.lockMinimapButton = locked
-
-    local lockSetting = Settings.RegisterAddOnSetting(
-        category,
-        "锁定按钮位置",
-        "lockMinimapButton",
-        self.minimapSettings,
-        Settings.GetValueTypeBoolean(),
-        locked
-    )
-    Settings.CreateCheckBox(category, lockSetting, "锁定小地图按钮位置，禁止拖拽")
-
-    Settings.SetOnValueChangedCallback("lockMinimapButton", function()
-        local value = self.minimapSettings.lockMinimapButton
-        EUF.Database:Set(value, "minimap", "locked")
-    end)
-
-    -- 重置位置按钮
-    local resetPosSetting = Settings.RegisterSetting(category, "重置按钮位置", function()
-        return "|cFFFFFFFF点击重置小地图按钮位置|r"
-    end)
-
-    Settings.CreateButton(category, resetPosSetting, "重置位置", function()
-        if EUF.MinimapButton then
-            EUF.MinimapButton:ResetPosition()
-            EUF:Print("小地图按钮位置已重置")
+    CreateCheckbox(category, "lockMinimapButton", "锁定按钮位置", false, "锁定小地图按钮位置，禁止拖拽",
+        function() return EUF.Database:Get("minimap", "locked") == true end,
+        function(value)
+            EUF.Database:Set(value, "minimap", "locked")
         end
-    end)
-
-    Settings.AddSpacer(category)
+    )
 end
 
 -------------------------------------------------------------------------------
@@ -475,92 +517,21 @@ end
 -------------------------------------------------------------------------------
 
 function OptionsPanel:CreateAdvancedSettings(category)
-    -- 分隔标题
-    Settings.RegisterSetting(category, "高级选项", function()
-        return "|cFFFFFFFF高级选项|r"
-    end)
+    CreateHeader(category, "高级选项")
 
-    -- 重置配置按钮
-    local resetSetting = Settings.RegisterSetting(category, "重置配置", function()
-        return "|cFFFF0000点击重置所有设置为默认值|r"
-    end)
-
-    Settings.CreateButton(category, resetSetting, "重置配置", function()
-        EUF.Database:ResetProfile()
-        EUF:InitializeModules()
-        EUF:Print("配置已重置")
-    end)
-
-    Settings.AddSpacer(category)
-end
-
--------------------------------------------------------------------------------
--- 辅助函数
--------------------------------------------------------------------------------
-
--- 创建材质选项
-function OptionsPanel:CreateTextureOptions()
-    return function()
-        local textures = EUF.Textures and EUF.Textures:GetTextureList() or {"Blizzard"}
-        local options = {}
-
-        for _, name in ipairs(textures) do
-            table.insert(options, {
-                text = name,
-                value = name,
-            })
+    -- 重置配置
+    CreateCheckbox(category, "resetConfigConfirm", "重置所有配置", false, "勾选此项将重置所有设置为默认值",
+        function() return false end,
+        function(value)
+            if value then
+                C_Timer.After(0.1, function()
+                    EUF.Database:ResetProfile()
+                    EUF:InitializeModules()
+                    EUF:Print("配置已重置")
+                end)
+            end
         end
-
-        return options
-    end
-end
-
--- 创建边框选项
-function OptionsPanel:CreateBorderOptions()
-    return function()
-        return {
-            { text = "无", value = "None" },
-            { text = "圆角", value = "Rounded" },
-            { text = "方形", value = "Square" },
-            { text = "暴雪默认", value = "Blizzard" },
-        }
-    end
-end
-
--- 创建健康值格式选项
-function OptionsPanel:CreateHealthFormatOptions()
-    return function()
-        return {
-            { text = "暴雪默认 (推荐)", value = "DEFAULT" },
-            { text = "百分比", value = "PERCENT" },
-            { text = "当前值", value = "CURRENT" },
-            { text = "当前/最大", value = "CURRENT/MAX" },
-            { text = "亏损值", value = "DEFICIT" },
-            { text = "隐藏", value = "HIDDEN" },
-        }
-    end
-end
-
--------------------------------------------------------------------------------
--- 刷新函数
--------------------------------------------------------------------------------
-
-function OptionsPanel:RefreshClassColors()
-    if EUF.ClassColors and EUF.ClassColors.initialized then
-        EUF.ClassColors:Refresh()
-    end
-end
-
-function OptionsPanel:RefreshTextures()
-    if EUF.Textures and EUF.Textures.initialized then
-        EUF.Textures:Refresh()
-    end
-end
-
-function OptionsPanel:RefreshTextSettings()
-    if EUF.TextSettings and EUF.TextSettings.initialized then
-        EUF.TextSettings:Refresh()
-    end
+    )
 end
 
 -------------------------------------------------------------------------------
@@ -569,7 +540,14 @@ end
 
 function OptionsPanel:Open()
     if self.category then
-        Settings.OpenToCategory(self.category:GetID())
+        local categoryID = self.category:GetID()
+        if categoryID then
+            Settings.OpenToCategory(categoryID)
+        else
+            EUF:Print("无法获取设置分类 ID")
+        end
+    else
+        EUF:Print("设置面板未正确初始化")
     end
 end
 

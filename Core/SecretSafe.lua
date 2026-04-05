@@ -166,36 +166,38 @@ end
 
 -- 安全职业色获取
 -- 使用 GUID + GetPlayerInfoByGUID 路径（非机密）
--- 返回: r, g, b, colorStr (失败返回 1, 1, 1, "ffffffff")
+-- 返回: ColorMixin 对象 或 nil
 function SecretSafe.SafeGetClassColor(unit)
     -- 防御性检查
     if not unit or not UnitExists(unit) then
-        return 1, 1, 1, "ffffffff"
+        return nil
     end
 
     -- 方法 1: 通过 GUID 获取职业（推荐，非机密路径）
     local guid = UnitGUID(unit)
     if guid then
-        local success, _, classToken = pcall(GetPlayerInfoByGUID, guid)
-        if success and classToken then
-            local color = C_ClassColor.GetClassColor(classToken)
+        local _, englishClass = GetPlayerInfoByGUID(guid)
+        if englishClass then
+            local color = C_ClassColor.GetClassColor(englishClass)
             if color then
-                return color.r, color.g, color.b, color.colorStr
+                -- 确保 color 是 ColorMixin 对象
+                -- C_ClassColor.GetClassColor 可能返回带 r/g/b 的表而非完整 ColorMixin
+                return CreateColor(color.r, color.g, color.b, 1)
             end
         end
     end
 
     -- 方法 2: 通过 UnitClass 获取（某些场景可能返回机密值）
-    local success, _, classToken = SecretSafe.SafeAPICall(UnitClass, unit)
-    if success and classToken then
-        local color = C_ClassColor.GetClassColor(classToken)
+    local _, englishClass = UnitClass(unit)
+    if englishClass then
+        local color = C_ClassColor.GetClassColor(englishClass)
         if color then
-            return color.r, color.g, color.b, color.colorStr
+            return CreateColor(color.r, color.g, color.b, 1)
         end
     end
 
     -- 默认白色
-    return 1, 1, 1, "ffffffff"
+    return nil
 end
 
 -- 安全获取职业 Token
@@ -205,19 +207,19 @@ function SecretSafe.SafeGetClassToken(unit)
         return nil
     end
 
-    -- 优先使用 GUID 路径
+    -- 优先使用 GUID 路径（非机密）
     local guid = UnitGUID(unit)
     if guid then
-        local success, _, classToken = pcall(GetPlayerInfoByGUID, guid)
-        if success and classToken then
-            return classToken
+        local _, englishClass = GetPlayerInfoByGUID(guid)
+        if englishClass then
+            return englishClass
         end
     end
 
-    -- 备用方案
-    local success, _, classToken = SecretSafe.SafeAPICall(UnitClass, unit)
-    if success then
-        return classToken
+    -- 备用方案：UnitClass
+    local _, englishClass = UnitClass(unit)
+    if englishClass then
+        return englishClass
     end
 
     return nil
@@ -240,22 +242,22 @@ SecretSafe.REACTION_COLORS = {
 }
 
 -- 安全反应色获取
--- 返回: r, g, b
+-- 返回: ColorMixin 对象
 function SecretSafe.SafeGetReactionColor(unit)
     if not unit or not UnitExists(unit) then
-        return 1, 1, 1
+        return CreateColor(1, 1, 1, 1)
     end
 
     -- UnitReaction 是非机密 API
     local reaction = UnitReaction(unit, "player")
     if reaction then
-        local color = SecretSafe.REACTION_COLORS[reaction]
-        if color then
-            return color.r, color.g, color.b
+        local c = SecretSafe.REACTION_COLORS[reaction]
+        if c then
+            return CreateColor(c.r, c.g, c.b, 1)
         end
     end
 
-    return 1, 1, 1
+    return CreateColor(1, 1, 1, 1)
 end
 
 -------------------------------------------------------------------------------
@@ -270,11 +272,37 @@ function SecretSafe.SafeGetHealthPercent(unit)
     -- 方法 1: 从 StatusBar 获取（如果已设置）
     local healthBar
     if unit == "player" then
-        healthBar = PlayerFrameHealthBar
+        -- WoW 12.0: 优先使用新路径
+        if PlayerFrame and PlayerFrame.PlayerFrameContent then
+            local content = PlayerFrame.PlayerFrameContent
+            if content.PlayerFrameContentMain and content.PlayerFrameContentMain.HealthBarsContainer then
+                healthBar = content.PlayerFrameContentMain.HealthBarsContainer.HealthBar
+            end
+        end
+        -- 备用旧版全局变量
+        if not healthBar then
+            healthBar = _G.PlayerFrameHealthBar
+        end
     elseif unit == "target" then
-        healthBar = TargetFrameHealthBar
+        if TargetFrame and TargetFrame.TargetFrameContent then
+            local content = TargetFrame.TargetFrameContent
+            if content.TargetFrameContentMain and content.TargetFrameContentMain.HealthBarsContainer then
+                healthBar = content.TargetFrameContentMain.HealthBarsContainer.HealthBar
+            end
+        end
+        if not healthBar then
+            healthBar = _G.TargetFrameHealthBar
+        end
     elseif unit == "focus" then
-        healthBar = FocusFrameHealthBar
+        if FocusFrame and FocusFrame.FocusFrameContent then
+            local content = FocusFrame.FocusFrameContent
+            if content.FocusFrameContentMain and content.FocusFrameContentMain.HealthBarsContainer then
+                healthBar = content.FocusFrameContentMain.HealthBarsContainer.HealthBar
+            end
+        end
+        if not healthBar then
+            healthBar = _G.FocusFrameHealthBar
+        end
     end
 
     if healthBar then
@@ -313,9 +341,41 @@ function SecretSafe.SafeGetPowerPercent(unit, powerType)
 
     local powerBar
     if unit == "player" then
-        powerBar = PlayerFrameManaBar
+        -- 使用暴雪提供的函数（推荐）
+        if _G.PlayerFrame_GetManaBar then
+            powerBar = _G.PlayerFrame_GetManaBar()
+        end
+        -- 备用：新结构路径
+        if not powerBar and PlayerFrame and PlayerFrame.PlayerFrameContent then
+            local content = PlayerFrame.PlayerFrameContent
+            if content.PlayerFrameContentMain then
+                local main = content.PlayerFrameContentMain
+                if main.ManaBarsContainer then
+                    powerBar = main.ManaBarsContainer.ManaBar
+                elseif main.ManaBar then
+                    powerBar = main.ManaBar
+                end
+            end
+        end
+        -- 备用旧版全局变量
+        if not powerBar then
+            powerBar = _G.PlayerFrameManaBar
+        end
     elseif unit == "target" then
-        powerBar = TargetFrameManaBar
+        if TargetFrame and TargetFrame.TargetFrameContent then
+            local content = TargetFrame.TargetFrameContent
+            if content.TargetFrameContentMain then
+                local main = content.TargetFrameContentMain
+                if main.ManaBarsContainer then
+                    powerBar = main.ManaBarsContainer.ManaBar
+                elseif main.ManaBar then
+                    powerBar = main.ManaBar
+                end
+            end
+        end
+        if not powerBar then
+            powerBar = _G.TargetFrameManaBar
+        end
     end
 
     if powerBar then
